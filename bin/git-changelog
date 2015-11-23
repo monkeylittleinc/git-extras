@@ -255,7 +255,7 @@ commitList() {
     # add tag to assoc array; copy tag to tag_list_keys for ordered iteration
     tags_list+=( "${_tag}:${_ref}=>${_date}" )
     tags_list_keys+=( "${_tag}" )
-  done <<< "$(git log --tags --simplify-by-decoration --date="short" --pretty="format:%h${_tab}%ad${_tab}%d" | ([ -z "${exclude_tag}" ] && cat || sed -e "/$exclude_tag/d"))"
+  done <<< "$(git log --tags --simplify-by-decoration --date="short" --pretty="format:%h${_tab}%ad${_tab}%d" | ([ -z "${exclude_tag}" ] && cat || sed -r -e "s/tag:.*${exclude_tag}, //g" -e "/$exclude_tag/d"))"
   IFS="$defaultIFS"
   unset _tag_regex
   unset _ref _date _tag _tab
@@ -269,16 +269,6 @@ commitList() {
     local __prev_tag="${tags_list_keys[$i+1]:-null}"
     local __curr_date="$(_valueForKeyFakeAssocArray "${__curr_tag}" "${tags_list[*]}")"
     __curr_date="${__curr_date##*=>}"
-
-    # output latest commits, up until the most-recent tag, these are all
-    # new commits made since the last tagged commit.
-    if [[ $i -eq 0 && ( -z "$final_tag" || "$final_tag" == "null" ) ]]; then
-      if [[ "$list_style" == true ]]; then
-        _formatCommitPlain "${__curr_tag}" >> "$tmpfile"
-      else
-        _formatCommitPretty "$title_tag" "$title_date" "${__curr_tag}"
-      fi
-    fi
 
     # both final_tag and start_tag are "null", user just wanted recent commits
     [[ "$final_tag" == "null" && "$start_tag" == "null" ]] && break;
