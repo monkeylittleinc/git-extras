@@ -1,5 +1,29 @@
 #!/usr/bin/env bash
 
+# reset environment variables that could interfere with normal usage
+export GREP_OPTIONS=
+# put all utility functions here
+
+# make a temporary file
+git_extra_mktemp() {
+    mktemp -t "$(basename "$0")".XXX
+}
+
+#
+# check whether current directory is inside a git repository
+#
+
+is_git_repo() {
+  git rev-parse --show-toplevel > /dev/null 2>&1
+  result=$?
+  if test $result != 0; then
+    >&2 echo 'Not a git repo!'
+    exit $result
+  fi
+}
+
+is_git_repo
+
 DEF_TAG_RECENT="n.n.n"
 GIT_LOG_OPTS="$(git config changelog.opts)"
 GIT_LOG_FORMAT="$(git config changelog.format)"
@@ -21,6 +45,7 @@ recent commits are output up to the last identified tag.
 
 OPTIONS:
   -a, --all                 Retrieve all commits (ignores --start-tag, --final-tag)
+  -e, --exclude-tag         Pattern to exclude from tag list
   -l, --list                Display commits as a list, with no titles
   -t, --tag                 Tag label to use for most-recent (untagged) commits
   -f, --final-tag           Newest tag to retrieve commits from in a range
@@ -182,6 +207,7 @@ commitList() {
   # parameter list supports empty arguments!
   local list_all="${1:-false}"; shift
   local title_tag="$1"; shift
+  local exclude_tag="$1"; shift
   local start_tag="$1"; shift
   local final_tag="$1"; shift
   local list_style="${1:-false}" # enable/disable list format
@@ -229,7 +255,7 @@ commitList() {
     # add tag to assoc array; copy tag to tag_list_keys for ordered iteration
     tags_list+=( "${_tag}:${_ref}=>${_date}" )
     tags_list_keys+=( "${_tag}" )
-  done <<< "$(git log --tags --simplify-by-decoration --date="short" --pretty="format:%h${_tab}%ad${_tab}%d")"
+  done <<< "$(git log --tags --simplify-by-decoration --date="short" --pretty="format:%h${_tab}%ad${_tab}%d" | ([ -z "${exclude_tag}" ] && cat || sed -e "/$exclude_tag/d"))"
   IFS="$defaultIFS"
   unset _tag_regex
   unset _ref _date _tag _tab
@@ -290,20 +316,22 @@ commitList() {
 
 commitListPlain() {
   local list_all="${1:-false}"
-  local start_tag="$2"
-  local final_tag="$3"
+  local start_tag="$3"
+  local final_tag="$4"
+  local exclude_tag="$2"
 
-  commitList "$list_all" "" "$start_tag" "$final_tag" "true"
+  commitList "$list_all" "$exclude_tag" "$start_tag" "$final_tag" "true"
 }
 
 commitListPretty() {
   local list_all="${1:-false}"
   local title_tag="$2"
-  local start_tag="$3"
-  local final_tag="$4"
+  local start_tag="$4"
+  local final_tag="$5"
+  local exclude_tag="$3"
   local title_date="$(date +'%Y-%m-%d')"
 
-  commitList "$list_all" "$title_tag" "$start_tag" "$final_tag"
+  commitList "$list_all" "$title_tag" "$exclude_tag" "$start_tag" "$final_tag"
 }
 
 main() {
@@ -312,6 +340,7 @@ main() {
 
   local option=(
     "list_all:false"
+    "exclude_tag:"
     "list_style:false"
     "title_tag:$DEF_TAG_RECENT"
     "start_tag:"
@@ -335,6 +364,10 @@ main() {
     case $1 in
       -a | --all )
         option=( $(_setValueForKeyFakeAssocArray "list_all" true "${option[*]}") )
+        ;;
+      -e | --exclude-tag )
+        option=( $(_setValueForKeyFakeAssocArray "exclude_tag" "$2" "${option[*]}"))
+        shift
         ;;
       -l | --list )
         option=( $(_setValueForKeyFakeAssocArray "list_style" true "${option[*]}") )
@@ -398,18 +431,19 @@ main() {
   local tmpfile="$(git_extra_mktemp)"
   local changelog="$(_valueForKeyFakeAssocArray "output_file" "${option[*]}")"
   local title_tag="$(_valueForKeyFakeAssocArray "title_tag" "${option[*]}")"
+  local exclude_tag="$(_valueForKeyFakeAssocArray "exclude_tag" "${option[*]}")"
 
   if [[ "$(_valueForKeyFakeAssocArray "list_style" "${option[*]}")" == true ]]; then
     if [[ "$(_valueForKeyFakeAssocArray "list_all" "${option[*]}")" == true ]]; then
-      commitListPlain "true" >> "$tmpfile"
+      commitListPlain "true" "$exclude_tag" >> "$tmpfile"
     else
-      commitListPlain "false" "$start_tag" "$final_tag" >> "$tmpfile"
+      commitListPlain "false" "$exclude_tag" "$start_tag" "$final_tag" >> "$tmpfile"
     fi
   else
     if [[ "$(_valueForKeyFakeAssocArray "list_all" "${option[*]}")" == true ]]; then
-      commitListPretty "true" "$title_tag" >> "$tmpfile"
+      commitListPretty "true" "$title_tag" "$exclude_tag" >> "$tmpfile"
     else
-      commitListPretty "false" "$title_tag" "$start_tag" "$final_tag" >> "$tmpfile"
+      commitListPretty "false" "$title_tag" "$exclude_tag" "$start_tag" "$final_tag" >> "$tmpfile"
     fi
   fi
 
