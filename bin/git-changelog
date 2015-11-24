@@ -237,9 +237,10 @@ commitList() {
   local _ref _date _tag
   local _tag_regex='^[[:alnum:][:blank:][:punct:]]+/.*'
   while IFS=' ' read _ref _date _tag; do
+    [[ -z "${_tag}" ]] && continue
     tags_list+=( "${_tag}:${_ref}=>${_date}" )
     tags_list_keys+=( "${_tag}" )
-  done <<< "$(git for-each-ref --sort='-*authordate' --format '%(objectname) %(taggerdate:short) %(tag)' refs/tags | ([ -z "${exclude_tag}" ] && cat || sed -r -e "/$exclude_tag/d"))"
+  done <<< "$(git for-each-ref --sort='-taggerdate' --format '%(objectname) %(taggerdate:short) %(tag)' refs/tags | ([ -z "${exclude_tag}" ] && cat || sed -r -e "/$exclude_tag/d"))"
   IFS="$defaultIFS"
   unset _tag_regex
   unset _ref _date _tag
