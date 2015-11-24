@@ -221,44 +221,28 @@ commitList() {
   #
   # Tags look like this:
   #
-  # >git log --tags --simplify-by-decoration --date="short" --pretty="format:%h$%x09%ad$%x09%d"
-  #
-  # ecf1f2b$        2015-03-15$     (HEAD, tag: v1.0.1, origin/master, origin/HEAD, master, hotfix/1.0.2)
-  # a473e9c$        2015-03-04$     (tag: v1.0.0)
-  # f2cb562$        2015-02-19$     (tag: v0.9.2)
-  # 6197c2b$        2015-02-19$     (tag: v0.9.1)
-  # 1e5f5e6$        2015-02-16$     (tag: v0.9.0)
-  # 3de8ab5$        2015-02-11$     (origin/feature/restore-auto)
-  # a15afd1$        2015-02-02$     (origin/feature/versionable)
-  # 38a44e0$        2015-02-02$     (origin/feature/save-auto)
-  # 3244b80$        2015-01-16$     (origin/feature/silent-history, upstream)
-  # 85e45f8$        2014-08-25$
-  #
-  # The most-recent tag will be preceded by "HEAD, " if there have been zero
-  # commits since the tag. Also notice that with gitflow, we see features.
+  # $ git for-each-ref --sort='-*authordate' --format '%(objectname) %(taggerdate:short) %(tag)' refs/tags 
+  # 1a7cdea0be6620c77cc39345806fef625a82a556 2015-11-24 2.0.8-RC
+  # fead266af51d5c8e90ab93cba2738d7dbc2ff692 2015-11-24 2.0.8
+  # 4a2741caeb6dac6a3608056f2f0386bd1ab10604 2015-11-24 2.0.7-RC
+  # 3f961c892e2abb44ca8585f26d65efa8b02547f8 2015-11-19 2.0.6
+  # b9dd98c31a60996cdfa532cf4c8954371acc6219 2015-11-17 2.0.5
+  # 2502b4264f466b4945a738d70e6e75102dd41cd7 2015-11-11 1.0.4
+  # 76f77780339967005b1fd5714e1fcd0c5cd4e495 2015-11-11 1.0.3
+  # eb7daf51fb67386d46166eb178fb4d6f067514b1 2015-11-11 1.0.2
+  # 18059d857e0c4078a2fb0588e1856ae766099662 2015-11-03 1.0.1
   #
 
   # fetch our tags
-  local _ref _date _tag _tab='%x09'
+  local _ref _date _tag
   local _tag_regex='^[[:alnum:][:blank:][:punct:]]+/.*'
-  while IFS=$'\t' read _ref _date _tag; do
-    [[ -z "${_tag}" ]] && continue
-    # strip out tags form ()
-    # git v2.2.0+ supports '%D', like '%d' without the " (", ")" wrapping. One day we should use it instead.
-    _tag="${_tag# }"; _tag="${_tag//[()]/}"
-    # trap tag if it points to last commit (HEAD)
-    _tag="${_tag##HEAD, }"
-    # strip out any additional tags pointing to same commit, remove tag label
-    _tag="${_tag%%,*}"; _tag="${_tag#tag: }"
-    # strip out tags that are actually feature branches (git-flow support)
-    [[ "${_tag}" =~ ${_tag_regex} ]] && continue
-    # add tag to assoc array; copy tag to tag_list_keys for ordered iteration
+  while IFS=' ' read _ref _date _tag; do
     tags_list+=( "${_tag}:${_ref}=>${_date}" )
     tags_list_keys+=( "${_tag}" )
-  done <<< "$(git log --tags --simplify-by-decoration --date="short" --pretty="format:%h${_tab}%ad${_tab}%d" | ([ -z "${exclude_tag}" ] && cat || sed -r -e "s/tag:.*${exclude_tag}, //g" -e "/$exclude_tag/d"))"
+  done <<< "$(git for-each-ref --sort='-*authordate' --format '%(objectname) %(taggerdate:short) %(tag)' refs/tags | ([ -z "${exclude_tag}" ] && cat || sed -r -e "/$exclude_tag/d"))"
   IFS="$defaultIFS"
   unset _tag_regex
-  unset _ref _date _tag _tab
+  unset _ref _date _tag
 
   local _tags_list_keys_length="${#tags_list_keys[@]}"
   local _final_tag_found=false
