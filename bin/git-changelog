@@ -255,6 +255,16 @@ commitList() {
     local __curr_date="$(_valueForKeyFakeAssocArray "${__curr_tag}" "${tags_list[*]}")"
     __curr_date="${__curr_date##*=>}"
 
+    # output latest commits, up until the most-recent tag, these are all
+    # new commits made since the last tagged commit.
+    if [[ $i -eq 0 && ( -z "$final_tag" || "$final_tag" == "null" ) ]]; then
+      if [[ "$list_style" == true ]]; then
+        _formatCommitPlain "${__curr_tag}" >> "$tmpfile"
+      else
+        _formatCommitPretty "$title_tag" "$title_date" "${__curr_tag}"
+      fi
+    fi
+
     # both final_tag and start_tag are "null", user just wanted recent commits
     [[ "$final_tag" == "null" && "$start_tag" == "null" ]] && break;
 
