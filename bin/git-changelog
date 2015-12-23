@@ -179,17 +179,19 @@ _fetchCommitRange() {
 }
 
 _formatCommitPlain() {
-  local start_tag="$1"
-  local final_tag="$2"
+  local get_all="$1"
+  local start_tag="$2"
+  local final_tag="$3"
 
-  printf "%s" "$(_fetchCommitRange "false" "$start_tag" "$final_tag")"
+  printf "%s" "$(_fetchCommitRange "$get_all" "$start_tag" "$final_tag")"
 }
 
 _formatCommitPretty() {
   local title_tag="$1"
   local title_date="$2"
-  local start_tag="$3"
-  local final_tag="$4"
+  local get_all="$3"
+  local start_tag="$4"
+  local final_tag="$5"
   local title="$title_tag / $title_date"
   local title_underline=""
 
@@ -200,7 +202,7 @@ _formatCommitPretty() {
   unset i
 
   printf '\n%s\n%s\n' "$title" "$title_underline"
-  printf "\n%s\n" "$(_fetchCommitRange "false" "$start_tag" "$final_tag")"
+  printf "\n%s\n" "$(_fetchCommitRange "$get_all" "$start_tag" "$final_tag")"
 }
 
 commitList() {
@@ -221,7 +223,7 @@ commitList() {
   #
   # Tags look like this:
   #
-  # $ git for-each-ref --sort='-*authordate' --format '%(objectname) %(taggerdate:short) %(tag)' refs/tags 
+  # $ git for-each-ref --sort='-*authordate' --format '%(objectname) %(taggerdate:short) %(tag)' refs/tags
   # 1a7cdea0be6620c77cc39345806fef625a82a556 2015-11-24 2.0.8-RC
   # fead266af51d5c8e90ab93cba2738d7dbc2ff692 2015-11-24 2.0.8
   # 4a2741caeb6dac6a3608056f2f0386bd1ab10604 2015-11-24 2.0.7-RC
@@ -249,6 +251,20 @@ commitList() {
   local _final_tag_found=false
   local _start_tag_found=false
   local i
+
+  if [[ "${_tags_list_keys_length}" == 0 ]]; then
+    # output commits made between prev_tag and curr_tag, these are all of the
+    # commits related to the tag of interest.
+    if [[ "$list_style" == true ]]; then
+      _formatCommitPlain true "${__prev_tag}" "${__curr_tag}"
+    else
+      _formatCommitPretty "$title_tag" "$title_date" true "${__curr_tag}"
+    fi
+    unset __curr_date
+    unset __prev_tag
+    unset __curr_tag
+  fi
+
   for (( i=0; i<"${_tags_list_keys_length}"; i++ )); do
     local __curr_tag="${tags_list_keys[$i]}"
     local __prev_tag="${tags_list_keys[$i+1]:-null}"
@@ -259,9 +275,9 @@ commitList() {
     # new commits made since the last tagged commit.
     if [[ $i -eq 0 && ( -z "$final_tag" || "$final_tag" == "null" ) ]]; then
       if [[ "$list_style" == true ]]; then
-        _formatCommitPlain "${__curr_tag}" >> "$tmpfile"
+        _formatCommitPlain false "${__curr_tag}" >> "$tmpfile"
       else
-        _formatCommitPretty "$title_tag" "$title_date" "${__curr_tag}"
+        _formatCommitPretty "$title_tag" "$title_date" false "${__curr_tag}"
       fi
     fi
 
@@ -283,9 +299,9 @@ commitList() {
     # output commits made between prev_tag and curr_tag, these are all of the
     # commits related to the tag of interest.
     if [[ "$list_style" == true ]]; then
-      _formatCommitPlain "${__prev_tag}" "${__curr_tag}"
+      _formatCommitPlain false "${__prev_tag}" "${__curr_tag}"
     else
-      _formatCommitPretty "${__curr_tag}" "${__curr_date}" "${__prev_tag}" "${__curr_tag}"
+      _formatCommitPretty "${__curr_tag}" "${__curr_date}" false "${__prev_tag}" "${__curr_tag}"
     fi
     unset __curr_date
     unset __prev_tag
