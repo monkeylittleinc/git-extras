@@ -258,7 +258,7 @@ commitList() {
     if [[ "$list_style" == true ]]; then
       _formatCommitPlain true "${__prev_tag}" "${__curr_tag}"
     else
-      _formatCommitPretty "${__curr_tag}" "${__curr_date}" true "${__prev_tag}" "${__curr_tag}"
+      _formatCommitPretty "$title_tag" "$title_date" true "${__curr_tag}"
     fi
     unset __curr_date
     unset __prev_tag
